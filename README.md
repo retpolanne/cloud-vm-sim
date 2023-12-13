@@ -6,3 +6,5 @@ QEMU VM. It can also monitor the VM state and other things.
 ## TODO
 
 - [ ] Create function to start QEMU with the provided user-data
+- [ ] Serve user-data to QEMU
+- [ ] If planning on running multiple VMs, copy the .img to tmp .img file
