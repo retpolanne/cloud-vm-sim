@@ -10,9 +10,12 @@ use axum::{
 
 #[tokio::main]
 async fn main() {
+    let var = "abc";
     let app = Router::new()
 	.route("/spawn_qemu/:name",
-	       post(spawn_qemu_request))
+	       post(
+		   move |path: Path<String>, body: String|
+		   spawn_qemu_request(path, body)))
 	.route("/:name/user-data",
 	       get(user_data_request));
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
