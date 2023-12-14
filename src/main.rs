@@ -2,6 +2,8 @@ use std::process::Command;
 use std::collections::HashMap;
 use std::thread;
 use std::str;
+use std::fs::File;
+use std::fs;
 use axum::{
     extract::{Path, Extension},
     routing::{post, get},
@@ -50,6 +52,11 @@ async fn user_data_request(
 }
 
 fn qemu_spawn(name: String) {
+    let _ = fs::create_dir_all("/tmp/qemu-logs");
+    let log_name = format!("/tmp/qemu-logs/{}.log", name.clone());
+    let log = File::create(log_name).expect("failed to open log");
+    let err_log_name = format!("/tmp/qemu-logs/{}-stderr.log", name.clone());
+    let err_log = File::create(err_log_name).expect("failed to open log");
     let mut cmd = if cfg!(target_arch = "aarch64") {
 	Command::new("qemu-system-aarch64")
     } else {
@@ -73,6 +80,9 @@ fn qemu_spawn(name: String) {
 	      "-hda", "./bionic-server-cloudimg-amd64.img",
 	      "--smbios", format!("type=1,serial=ds='nocloud-net;s=http://10.0.2.2:3000/{}'", name).as_str(),
 	      "-netdev", "user,id=net0,hostfwd=tcp::2222-:22"]);
+
+    cmd.stdout(log);
+    cmd.stderr(err_log);
 
     if let Ok(child) = cmd.spawn() {
 	println!("Spawned qemu");
