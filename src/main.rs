@@ -32,9 +32,8 @@ async fn spawn_qemu_request(
     Extension(state) : Extension<Arc<RwLock<VMState>>>, Path(name): Path<String>, user_data: String
 ) -> &'static str {
     let user_data_clone = user_data.clone();
-    state.write().unwrap().vm_map.insert(name, user_data_clone);
-    println!("{}", user_data);
-    //thread::spawn(|| qemu_spawn(name));
+    state.write().unwrap().vm_map.insert(name.clone(), user_data_clone);
+    thread::spawn(|| qemu_spawn(name));
     "QEMU was spawned :)" 
 }
 
@@ -51,7 +50,6 @@ async fn user_data_request(
 }
 
 fn qemu_spawn(name: String) {
-    println!("{}", name);
     let mut cmd = if cfg!(target_arch = "aarch64") {
 	Command::new("qemu-system-aarch64")
     } else {
@@ -73,6 +71,7 @@ fn qemu_spawn(name: String) {
 	      "-device", "virtio-scsi-pci,id=scsi",
 	      "-device", "e1000,netdev=net0",
 	      "-hda", "./bionic-server-cloudimg-amd64.img",
+	      "--smbios", format!("type=1,serial=ds='nocloud-net;s=http://10.0.2.2:3000/{}'", name).as_str(),
 	      "-netdev", "user,id=net0,hostfwd=tcp::2222-:22"]);
 
     if let Ok(child) = cmd.spawn() {
