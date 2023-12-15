@@ -77,6 +77,10 @@ fn qemu_spawn(name: String) {
     let err_log = File::create(err_log_name.clone()).expect("failed to open log");
     let vm_image = env::var("CLOUD_VM_IMG_PATH")
 	.unwrap_or("./bionic-server-cloudimg-amd64.img".to_string());
+    let append = env::var("KERNEL_APPEND");
+    let vmlinuz = env::var("KERNEL_VMLINUZ_PATH");
+    let nocloud_addr = format!("http://10.0.2.2:3000/{}/", name);
+    let cmdline_addr = format!("http://10.0.2.2:3000/{}/user-data", name);
     let mut cmd = if cfg!(target_arch = "aarch64") {
 	Command::new("qemu-system-aarch64")
     } else {
@@ -91,6 +95,15 @@ fn qemu_spawn(name: String) {
 	cmd.arg("accel=hvf");
     }
 
+    if append.is_ok() {
+	cmd.arg("-append");
+	cmd.arg(format!("{} cloud-config-url={}", append.unwrap(), cmdline_addr));
+	if vmlinuz.is_ok() {
+	    cmd.arg("-kernel");
+	    cmd.arg(vmlinuz.unwrap());
+	}
+    }
+
     cmd.args(["-m", "2G",
 	      "-cpu", "host",
 	      "-serial", "stdio",
@@ -98,7 +111,7 @@ fn qemu_spawn(name: String) {
 	      "-device", "virtio-scsi-pci,id=scsi",
 	      "-device", "e1000,netdev=net0",
 	      "-hda", &vm_image,
-	      "--smbios", format!("type=1,serial=ds=nocloud-net;s=http://10.0.2.2:3000/{}/", name).as_str(),
+	      "-smbios", format!("type=1,serial=ds=nocloud-net;s={}", nocloud_addr).as_str(),
 	      "-netdev", "user,id=net0,hostfwd=tcp::2222-:22"]);
 
     cmd.stdout(log);

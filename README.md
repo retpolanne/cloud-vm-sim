@@ -9,6 +9,13 @@ To specify a cloud image different than bionic, set this env var:
 export CLOUD_VM_IMG_PATH=$PWD/whatever.qcow2
 ```
 
+For append options, set these variables (make sure you have a vmlinuz file or a valid kernel as well):
+
+```sh
+export KERNEL_APPEND="root=/dev/sda"
+export KERNEL_VMLINUZ_PATH="./vmlinuz"
+```
+
 ## TODO
 
 - [x] Create function to start QEMU with the provided user-data

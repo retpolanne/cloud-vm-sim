@@ -1,3 +1,4 @@
 /target
 *.img
 *.qcow2
+*.vmlinuz
