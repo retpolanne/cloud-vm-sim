@@ -4,6 +4,7 @@ use std::thread;
 use std::str;
 use std::fs::File;
 use std::fs;
+use std::env;
 use axum::{
     extract::{Path, Extension},
     routing::{post, get},
@@ -74,6 +75,8 @@ fn qemu_spawn(name: String) {
     let log = File::create(log_name.clone()).expect("failed to open log");
     let err_log_name = format!("/tmp/qemu-logs/{}-stderr.log", name.clone());
     let err_log = File::create(err_log_name.clone()).expect("failed to open log");
+    let vm_image = env::var("CLOUD_VM_IMG_PATH")
+	.unwrap_or("./bionic-server-cloudimg-amd64.img".to_string());
     let mut cmd = if cfg!(target_arch = "aarch64") {
 	Command::new("qemu-system-aarch64")
     } else {
@@ -94,7 +97,7 @@ fn qemu_spawn(name: String) {
 	      "-display", "none",
 	      "-device", "virtio-scsi-pci,id=scsi",
 	      "-device", "e1000,netdev=net0",
-	      "-hda", "./bionic-server-cloudimg-amd64.img",
+	      "-hda", &vm_image,
 	      "--smbios", format!("type=1,serial=ds=nocloud-net;s=http://10.0.2.2:3000/{}/", name).as_str(),
 	      "-netdev", "user,id=net0,hostfwd=tcp::2222-:22"]);
 
