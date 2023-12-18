@@ -1,0 +1,52 @@
+name: Build cloud-vm-sim
+env:
+  GITHUB_TOKEN: ${{ github.token }}
+
+on:
+  push:
+    branches: [main]
+
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Release - ${{ matrix.platform.release_for }}
+    strategy:
+      matrix:
+        platform:
+          - release_for: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: cloud-vm-sim
+            name: cloud-vm-sim-Linux-x86_64
+            command: build
+
+          - release_for: macOS-x86_64
+            os: macOS-latest
+            target: x86_64-apple-darwin
+            bin: cloud-vm-sim
+            name: cloud-vm-sim-Darwin-x86_64
+            command: both
+
+          - release_for: macOS-aarch64
+            os: macOS-latest-xlarge
+            target: aarch64-apple-darwin
+            bin: cloud-vm-sim
+            name: cloud-vm-sim-Darwin-aarch64
+            command: both
+
+    runs-on: ${{ matrix.platform.os }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Build binary
+        uses: houseabsolute/actions-rust-cross@v0
+        with:
+          command: ${{ matrix.platform.command }}
+          target: ${{ matrix.platform.target }}
+          args: "--locked --release"
+          strip: true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.name }}
+          path: target/${{ matrix.platform.target }}/release/cloud-vm-sim
