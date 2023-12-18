@@ -39,6 +39,7 @@ async fn main() {
 	.with_max_level(tracing::Level::DEBUG)
 	.init();
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    println!("Cloud VM Simulator started");
     axum::serve(listener, router()).await.unwrap();
 }
 
@@ -79,6 +80,7 @@ fn qemu_spawn(name: String) {
 	.unwrap_or("./bionic-server-cloudimg-amd64.img".to_string());
     let append = env::var("KERNEL_APPEND");
     let vmlinuz = env::var("KERNEL_VMLINUZ_PATH");
+    println!("Running image {} with append {} and kernel {}", vm_image.clone(), append.clone().unwrap(), vmlinuz.clone().unwrap());
     let nocloud_addr = format!("http://10.0.2.2:3000/{}/", name);
     let cmdline_addr = format!("http://10.0.2.2:3000/{}/user-data", name);
     let mut cmd = if cfg!(target_arch = "aarch64") {
@@ -90,6 +92,10 @@ fn qemu_spawn(name: String) {
     if cfg!(target_arch = "aarch64") {
 	cmd.arg("-M");
 	cmd.arg("virt,accel=hvf");
+	cmd.arg("-pflash");
+	cmd.arg("flash0.img");
+	cmd.arg("-pflash");
+	cmd.arg("flash1.img");
     } else {
 	cmd.arg("-M");
 	cmd.arg("accel=hvf");
