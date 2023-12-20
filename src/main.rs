@@ -2,7 +2,7 @@ use std::process::Command;
 use std::collections::HashMap;
 use std::thread;
 use std::str;
-use std::fs::File;
+use std::fs::{File, copy};
 use std::fs;
 use std::env;
 use axum::{
@@ -13,6 +13,7 @@ use axum::{
 use tower_http::trace::TraceLayer;
 use tracing_subscriber;
 use std::sync::{Arc, RwLock};
+use rand::{thread_rng, Rng};
 
 struct VMState {
     vm_map: HashMap<String, String>,
@@ -72,6 +73,7 @@ async fn meta_data_request(
 
 fn qemu_spawn(name: String) {
     let _ = fs::create_dir_all("/tmp/qemu-logs");
+    let _ = fs::create_dir_all("/tmp/qemu-disks");
     let log_name = format!("/tmp/qemu-logs/{}.log", name.clone());
     let log = File::create(log_name.clone()).expect("failed to open log");
     let err_log_name = format!("/tmp/qemu-logs/{}-stderr.log", name.clone());
@@ -80,9 +82,17 @@ fn qemu_spawn(name: String) {
 	.unwrap_or("./bionic-server-cloudimg-amd64.img".to_string());
     let append = env::var("KERNEL_APPEND");
     let vmlinuz = env::var("KERNEL_VMLINUZ_PATH");
-    println!("Running image {} with append {} and kernel {}", vm_image.clone(), append.clone().unwrap(), vmlinuz.clone().unwrap());
+    println!("Running image {}", vm_image.clone());
     let nocloud_addr = format!("http://10.0.2.2:3000/{}/", name);
     let cmdline_addr = format!("http://10.0.2.2:3000/{}/user-data", name);
+    let ssh_port = thread_rng().gen_range(32768..60999);
+    println!("Using ssh port {}", ssh_port.clone());
+    let qemu_disk = format!("/tmp/qemu-disks/{}-{}.qcow", name.clone(), ssh_port.clone());
+    println!("Copying disk {} to {}", vm_image.clone(), qemu_disk.clone());
+    copy(vm_image.clone(), qemu_disk.clone()).expect("Failed to copy disk");
+    let expose = env::var("EXPOSE_PORT");
+    let expose_random = thread_rng().gen_range(32768..60999);
+
     let mut cmd = if cfg!(target_arch = "aarch64") {
 	Command::new("qemu-system-aarch64")
     } else {
@@ -102,6 +112,7 @@ fn qemu_spawn(name: String) {
     }
 
     if append.is_ok() {
+	println!("Running image {} with append {} and kernel {}", qemu_disk.clone(), append.clone().unwrap(), vmlinuz.clone().unwrap());
 	cmd.arg("-append");
 	cmd.arg(format!("{} cloud-config-url={}", append.unwrap(), cmdline_addr));
 	if vmlinuz.is_ok() {
@@ -116,9 +127,17 @@ fn qemu_spawn(name: String) {
 	      "-display", "none",
 	      "-device", "virtio-scsi-pci,id=scsi",
 	      "-device", "e1000,netdev=net0",
-	      "-hda", &vm_image,
-	      "-smbios", format!("type=1,serial=ds=nocloud-net;s={}", nocloud_addr).as_str(),
-	      "-netdev", "user,id=net0,hostfwd=tcp::2222-:22"]);
+	      "-hda", &qemu_disk,
+	      "-smbios", format!("type=1,serial=ds=nocloud-net;s={}", nocloud_addr).as_str()]);
+
+    if expose.is_ok() {
+	println!("Will expose port {} as {}", expose.clone().unwrap(), expose_random.clone());
+	cmd.arg("-netdev");
+	cmd.arg(format!("user,id=net0,hostfwd=tcp::{}-:{},hostfwd=tcp::{}-:22", expose_random.clone(), expose.clone().unwrap(), ssh_port.clone()).as_str());
+    } else {
+	cmd.arg("-netdev");
+	cmd.arg(format!("user,id=net0,hostfwd=tcp::{}-:22", ssh_port).as_str());
+    }
 
     cmd.stdout(log);
     cmd.stderr(err_log);
