@@ -97,9 +97,6 @@ fn qemu_spawn(name: String) {
 
     let mut cmd = Command::new("qemu-system-x86_64");
 
-    cmd.arg("-M");
-    cmd.arg("accel=hvf");
-
     if append.is_ok() {
         println!(
             "Running image {} with append {} and kernel {}",
