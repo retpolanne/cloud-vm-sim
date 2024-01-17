@@ -116,25 +116,6 @@ fn qemu_spawn(name: String) {
         }
     }
 
-    cmd.args([
-        "-m",
-        "2G",
-        "-cpu",
-        "Skylake-Server-v4",
-        "-serial",
-        "stdio",
-        "-display",
-        "none",
-        "-device",
-        "virtio-scsi-pci,id=scsi",
-        "-device",
-        "e1000,netdev=net0",
-        "-hda",
-        &qemu_disk,
-        "-smbios",
-        format!("type=1,serial=ds=nocloud-net;s={}", nocloud_addr).as_str(),
-    ]);
-
     if expose.is_ok() {
         println!(
             "Will expose port {} as {}",
@@ -155,6 +136,34 @@ fn qemu_spawn(name: String) {
         cmd.arg("-netdev");
         cmd.arg(format!("user,id=net0,hostfwd=tcp::{}-:22", ssh_port).as_str());
     }
+
+
+    if cfg!(target_arch = "x86_64") {
+        cmd.arg("-cpu");
+        cmd.arg("host");
+        cmd.arg("-accel");
+        cmd.arg("hvf");
+    } else {
+        cmd.arg("-cpu");
+        cmd.arg("Skylake-Server-v4");
+    }
+
+    cmd.args([
+        "-m",
+        "2G",
+        "-serial",
+        "stdio",
+        "-display",
+        "none",
+        "-device",
+        "virtio-scsi-pci,id=scsi",
+        "-device",
+        "e1000,netdev=net0",
+        "-hda",
+        &qemu_disk,
+        "-smbios",
+        format!("type=1,serial=ds=nocloud-net;s={}", nocloud_addr).as_str(),
+    ]);
 
     cmd.stdout(log);
     cmd.stderr(err_log);
