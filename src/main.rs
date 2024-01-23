@@ -92,8 +92,7 @@ fn qemu_spawn(name: String) {
     let qemu_disk = format!("/tmp/qemu-disks/{}-{}.qcow", name.clone(), ssh_port.clone());
     println!("Copying disk {} to {}", vm_image.clone(), qemu_disk.clone());
     copy(vm_image.clone(), qemu_disk.clone()).expect("Failed to copy disk");
-    let expose = env::var("EXPOSE_PORT");
-    let expose_random = thread_rng().gen_range(32768..60999);
+    let expose = env::var("EXPOSE_PORTS");
 
     let mut cmd = if cfg!(target_arch = "aarch64") {
         Command::new("qemu-system-aarch64")
@@ -152,21 +151,19 @@ fn qemu_spawn(name: String) {
     ]);
 
     if expose.is_ok() {
-        println!(
-            "Will expose port {} as {}",
-            expose.clone().unwrap(),
-            expose_random.clone()
-        );
+        let netDevTpl = format!("user,id=net0,hostfwd=tcp::{}-:22", ssh_port.clone());
+        let finishedFwd = &mut "".to_string();
+        let ports = expose.clone().unwrap();
+        for port in ports.split(",") {
+            let hostFwd = format!(",hostfwd=tcp::{}-:{}", port.clone(), port.clone());
+            println!(
+                "Will expose port {}",
+                port.clone(),
+            );
+            finishedFwd.push_str(hostFwd.as_str())
+        }
         cmd.arg("-netdev");
-        cmd.arg(
-            format!(
-                "user,id=net0,hostfwd=tcp::{}-:{},hostfwd=tcp::{}-:22",
-                expose_random.clone(),
-                expose.clone().unwrap(),
-                ssh_port.clone()
-            )
-            .as_str(),
-        );
+        cmd.arg(netDevTpl + finishedFwd.clone().as_str());
     } else {
         cmd.arg("-netdev");
         cmd.arg(format!("user,id=net0,hostfwd=tcp::{}-:22", ssh_port).as_str());
