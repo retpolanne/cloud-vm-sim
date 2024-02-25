@@ -144,6 +144,8 @@ fn qemu_spawn(name: String) {
         "virtio-scsi-pci,id=scsi",
         "-device",
         "e1000,netdev=net0",
+        "-smp",
+        "2",
         "-hda",
         &qemu_disk,
         "-smbios",
