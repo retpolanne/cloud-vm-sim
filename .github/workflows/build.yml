@@ -28,13 +28,6 @@ jobs:
             name: cloud-vm-sim-Darwin-x86_64
             command: both
 
-          - release_for: macOS-aarch64
-            os: macOS-latest-xlarge
-            target: aarch64-apple-darwin
-            bin: cloud-vm-sim
-            name: cloud-vm-sim-Darwin-aarch64
-            command: both
-
     runs-on: ${{ matrix.platform.os }}
     steps:
       - name: Checkout
