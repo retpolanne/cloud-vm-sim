@@ -17,16 +17,19 @@ use tracing_subscriber;
 
 struct VMState {
     vm_map: HashMap<String, String>,
+    port_map: HashMap<String, u16>
 }
 
 fn router() -> Router {
     let shared_state: Arc<RwLock<VMState>> = Arc::new(RwLock::new(VMState {
         vm_map: HashMap::new(),
+        port_map: HashMap::new(),
     }));
     Router::new()
         .route("/spawn_qemu/:name", post(spawn_qemu_request))
         .route("/:name/user-data", get(user_data_request))
         .route("/:name/meta-data", get(meta_data_request))
+        .route("/:name/ssh-port", get(ssh_port_request))
         .layer(TraceLayer::new_for_http())
         .layer(Extension(shared_state))
 }
@@ -52,8 +55,24 @@ async fn spawn_qemu_request(
         .unwrap()
         .vm_map
         .insert(name.clone(), user_data_clone);
-    thread::spawn(|| qemu_spawn(name));
+    let ssh_port = thread_rng().gen_range(32768..60999);
+    println!("Using ssh port {}", ssh_port.clone());
+    state.write().unwrap().port_map.insert(name.clone(), ssh_port);
+    thread::spawn(move || qemu_spawn(name, ssh_port));
     "QEMU was spawned :)"
+}
+
+async fn ssh_port_request(
+    Extension(state): Extension<Arc<RwLock<VMState>>>,
+    Path(name): Path<String>,
+) -> String {
+    let port_map = &state.read().unwrap().port_map;
+
+    if let Some(value) = port_map.get(&name) {
+        format!("{}", value.clone())
+    } else {
+        format!("Couldn't get map for {}", name)
+    }
 }
 
 async fn user_data_request(
@@ -73,7 +92,7 @@ async fn meta_data_request(Path(name): Path<String>) -> String {
     format!("instance-id: {}", name)
 }
 
-fn qemu_spawn(name: String) {
+fn qemu_spawn(name: String, ssh_port: u16) {
     let _ = fs::create_dir_all("/tmp/qemu-logs");
     let _ = fs::create_dir_all("/tmp/qemu-disks");
     let log_name = format!("/tmp/qemu-logs/{}.log", name.clone());
@@ -87,8 +106,6 @@ fn qemu_spawn(name: String) {
     println!("Running image {}", vm_image.clone());
     let nocloud_addr = format!("http://10.0.2.2:3000/{}/", name);
     let cmdline_addr = format!("http://10.0.2.2:3000/{}/user-data", name);
-    let ssh_port = thread_rng().gen_range(32768..60999);
-    println!("Using ssh port {}", ssh_port.clone());
     let qemu_disk = format!("/tmp/qemu-disks/{}-{}.qcow", name.clone(), ssh_port.clone());
     println!("Copying disk {} to {}", vm_image.clone(), qemu_disk.clone());
     copy(vm_image.clone(), qemu_disk.clone()).expect("Failed to copy disk");

@@ -36,3 +36,9 @@ It will start a server on port 3000. To launch an instance, you can:
 cat user-data.yml | curl -X POST localhost:3000/spawn_qemu/your-vm-name-here --data-binary @-
 ```
 
+To ssh to your instance:
+
+``` sh
+ssh -p `curl --silent localhost:3000/your-vm-name-here/ssh-port` user@localhost
+```
+
