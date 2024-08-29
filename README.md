@@ -9,6 +9,18 @@ To specify a cloud image different than bionic, set this env var:
 export CLOUD_VM_IMG_PATH=$PWD/whatever.qcow2
 ```
 
+If you want to expose ports from the guest
+
+``` sh
+export EXPOSE_PORTS=32001,32002,5005,2375
+```
+
+With this, can even expose the Docker daemon port (2375) to build images on the guest docker.
+
+``` sh
+DOCKER_HOST="localhost:2375" docker build . 
+```
+
 For append options, set these variables (make sure you have a vmlinuz file or a valid kernel as well):
 
 ```sh
@@ -16,8 +28,11 @@ export KERNEL_APPEND="root=/dev/sda"
 export KERNEL_VMLINUZ_PATH="./vmlinuz"
 ```
 
-## TODO
+Then run `cloud-vm-sim` or build it from source with `cargo build --release`.
 
-- [x] Create function to start QEMU with the provided user-data
-- [x] Serve user-data to QEMU
-- [ ] If planning on running multiple VMs, copy the .img to tmp .img file
+It will start a server on port 3000. To launch an instance, you can:
+
+``` sh
+cat user-data.yml | curl -X POST localhost:3000/spawn_qemu/your-vm-name-here --data-binary @-
+```
+
