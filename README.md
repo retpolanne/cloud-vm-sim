@@ -42,3 +42,9 @@ To ssh to your instance:
 ssh -p `curl --silent localhost:3000/your-vm-name-here/ssh-port` user@localhost
 ```
 
+To connect to the QEMU monitor for the instance: 
+
+``` sh
+socat -,echo=0,icanon=0 unix-connect:/tmp/qemu-monitor-your-vm-name-here
+```
+

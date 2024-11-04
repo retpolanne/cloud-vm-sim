@@ -148,6 +148,9 @@ fn qemu_spawn(name: String, ssh_port: u16) {
         }
     }
 
+    cmd.arg("-monitor");
+    cmd.arg(format!("unix:/tmp/qemu-monitor-{},server,nowait", name.clone()));
+
     cmd.args([
         "-m",
         "2G",
